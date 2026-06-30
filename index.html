@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICC Welfare</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --black:#0a0a0a;
+  --panel:#141210;
+  --panel-2:#1c1916;
+  --line:#2b2620;
+  --gold:#5fa89a;
+  --gold-bright:#82c9bb;
+  --cream:#f3ede1;
+  --muted:#9a9181;
+  --red:#b3543f;
+  --green:#7c9473;
+  --radius:10px;
+}
+html[data-theme="light"]{
+  --black:#f4f1ea;
+  --panel:#ffffff;
+  --panel-2:#f0ece3;
+  --line:#e1dacb;
+  --gold:#3f8c7d;
+  --gold-bright:#2e7567;
+  --cream:#2a2620;
+  --muted:#8a8170;
+  --red:#b3543f;
+  --green:#4f8a5d;
+}
+html[data-theme="light"] body{
+  background:var(--black);
+}
+html[data-theme="light"] #loginScreen{
+  background:radial-gradient(circle at 50% 20%,#fbfaf6,#ece6d8 70%);
+}
+html[data-theme="light"] .login-card .btn{color:#fff;}
+html[data-theme="light"] .stat-card .val{color:var(--gold-bright);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--black);
+  color:var(--cream);
+  font-family:'Inter',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+h1,h2,h3,.brand{font-family:'Fraunces',serif;}
+::selection{background:var(--gold);color:#000;}
+input,select,button{font-family:'Inter',sans-serif;}
+
+/* ---------- LOGIN ---------- */
+#loginScreen{
+  position:fixed;inset:0;background:radial-gradient(circle at 50% 20%,#1c1712,#070605 70%);
+  display:flex;align-items:center;justify-content:center;z-index:999;
+}
+.login-card{
+  width:360px;max-width:90vw;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:38px 32px;text-align:center;
+}
+.login-card .crest{font-size:13px;letter-spacing:4px;color:var(--gold);text-transform:uppercase;margin-bottom:6px;}
+.login-card h1{font-size:28px;color:var(--gold-bright);margin-bottom:4px;font-weight:600;}
+.login-card p.sub{color:var(--muted);font-size:13px;margin-bottom:26px;}
+.field{text-align:left;margin-bottom:14px;}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;}
+.field input,.field select{
+  width:100%;padding:11px 12px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:7px;color:var(--cream);font-size:14px;outline:none;transition:border .15s;
+}
+.field input:focus,.field select:focus{border-color:var(--gold);}
+.btn{
+  width:100%;padding:12px;border:none;border-radius:7px;background:var(--gold);
+  color:#1a1305;font-weight:600;font-size:14px;cursor:pointer;letter-spacing:.3px;transition:background .15s, transform .1s;
+}
+.btn:hover{background:var(--gold-bright);}
+.btn:active{transform:scale(.98);}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--cream);}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold-bright);background:transparent;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-danger:hover{background:#c8634a;}
+.login-error{color:var(--red);font-size:12px;margin-top:10px;min-height:14px;}
+.toggle-row{margin-top:18px;font-size:12px;color:var(--muted);}
+.toggle-row a{color:var(--gold);cursor:pointer;text-decoration:none;}
+
+/* ---------- APP SHELL ---------- */
+#app{display:none;min-height:100vh;}
+#app.active{display:flex;}
+
+.sidebar{
+  width:230px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;transition:width .22s ease, padding .22s ease;overflow:hidden;
+}
+.sidebar.collapsed{width:64px;}
+.side-top{display:flex;align-items:center;justify-content:space-between;padding:18px 16px;border-bottom:1px solid var(--line);}
+.brand{font-size:17px;color:var(--gold-bright);white-space:nowrap;font-weight:600;}
+.sidebar.collapsed .brand,.sidebar.collapsed .nav-label,.sidebar.collapsed .side-foot-text{display:none;}
+.hamburger{
+  width:34px;height:34px;border:1px solid var(--line);border-radius:7px;background:var(--panel-2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+}
+.hamburger:hover{border-color:var(--gold);}
+.hamburger svg{width:16px;height:16px;stroke:var(--gold);}
+
+.nav{flex:1;padding:14px 10px;display:flex;flex-direction:column;gap:3px;}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:8px;cursor:pointer;
+  color:var(--muted);font-size:13.5px;white-space:nowrap;transition:background .15s,color .15s;
+}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;stroke:currentColor;}
+.nav-item:hover{background:var(--panel-2);color:var(--cream);}
+.nav-item.active{background:linear-gradient(90deg,rgba(95,168,154,.16),transparent);color:var(--gold-bright);border-left:2px solid var(--gold);padding-left:10px;}
+.sidebar.collapsed .nav-item{justify-content:center;padding:11px 0;}
+.sidebar.collapsed .nav-item.active{border-left:none;padding-left:0;border:1px solid var(--gold);}
+
+.side-foot{padding:14px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);}
+.side-foot-text b{color:var(--cream);}
+.logout-link{color:var(--red);cursor:pointer;display:inline-block;margin-top:6px;}
+
+.main{flex:1;display:flex;flex-direction:column;min-width:0;}
+.topbar{
+  height:64px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
+  padding:0 26px;background:var(--panel);
+}
+.topbar h2{font-size:19px;font-weight:600;color:var(--cream);}
+.topbar .who{font-size:12.5px;color:var(--muted);}
+.topbar .who b{color:var(--gold-bright);}
+.content{flex:1;padding:28px;overflow-y:auto;}
+
+/* ---------- DASHBOARD ---------- */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:30px;}
+.stat-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;
+  position:relative;overflow:hidden;
+}
+.stat-card::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold);}
+.stat-card .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
+.stat-card .val{font-family:'Fraunces',serif;font-size:34px;color:var(--gold-bright);font-weight:600;}
+.stat-card .sub{font-size:11.5px;color:var(--muted);margin-top:4px;}
+.panel-box{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:20px;}
+.panel-box h3{font-size:14px;color:var(--gold-bright);margin-bottom:14px;font-weight:600;}
+
+/* ---------- TABLES / FORMS ---------- */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px;justify-content:space-between;}
+.toolbar-left{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.search-input{padding:10px 13px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;color:var(--cream);font-size:13px;min-width:200px;outline:none;}
+.search-input:focus{border-color:var(--gold);}
+select.sel{padding:10px 13px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;color:var(--cream);font-size:13px;outline:none;}
+.btn-sm{padding:9px 16px;font-size:13px;width:auto;border-radius:7px;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  text-align:left;padding:11px 14px;color:var(--gold-bright);font-weight:600;font-size:11px;
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line);background:var(--panel-2);
+}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--line);color:var(--cream);}
+tbody tr:hover{background:var(--panel-2);}
+.badge{padding:3px 9px;border-radius:20px;font-size:11px;display:inline-block;}
+.badge-branch{background:rgba(95,168,154,.15);color:var(--gold-bright);border:1px solid rgba(95,168,154,.3);}
+.row-actions{display:flex;gap:8px;}
+.icon-btn{
+  width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+}
+.icon-btn svg{width:14px;height:14px;stroke:var(--muted);}
+.icon-btn:hover svg{stroke:var(--gold-bright);}
+.icon-btn.danger:hover{border-color:var(--red);}
+.icon-btn.danger:hover svg{stroke:var(--red);}
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+.empty-state svg{width:38px;height:38px;stroke:var(--line);margin-bottom:12px;}
+
+/* ---------- MODAL ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(5,4,3,.7);display:none;align-items:center;justify-content:center;z-index:500;}
+.modal-overlay.active{display:flex;}
+.modal{width:420px;max-width:92vw;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:26px;max-height:88vh;overflow-y:auto;}
+.modal h3{color:var(--gold-bright);font-size:16px;margin-bottom:18px;}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-grid .field.full{grid-column:1/-1;}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+
+.checkbox-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);}
+.checkbox-row:last-child{border-bottom:none;}
+.checkbox-row input{accent-color:var(--gold);width:15px;height:15px;}
+.checkbox-row span{font-size:13px;color:var(--cream);}
+
+.toast{
+  position:fixed;bottom:24px;right:24px;background:var(--panel);border:1px solid var(--gold);
+  color:var(--cream);padding:13px 20px;border-radius:8px;font-size:13px;z-index:1000;
+  opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateY(0);}
+
+.theme-toggle{
+  width:34px;height:34px;border:1px solid var(--line);border-radius:7px;background:var(--panel-2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+}
+.theme-toggle:hover{border-color:var(--gold);}
+.theme-toggle svg{width:16px;height:16px;stroke:var(--gold);}
+.login-theme-toggle{position:fixed;top:18px;right:18px;}
+
+@media(max-width:780px){
+  .sidebar{position:fixed;z-index:200;height:100vh;}
+  .sidebar:not(.collapsed){width:220px;}
+  .sidebar.collapsed{width:0;border:none;}
+  .main{width:100%;}
+  .content{padding:18px;}
+  .modal-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN / FIRST-TIME SETUP ===================== -->
+<div id="loginScreen">
+  <div class="theme-toggle login-theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+    <svg id="themeIconLogin" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+  </div>
+  <div class="login-card">
+    <div class="crest">Welfare Management</div>
+    <h1 id="loginAppName">ICC Welfare</h1>
+    <p class="sub" id="loginSub">Sign in to continue</p>
+
+    <div id="loginForm">
+      <div class="field"><label>Username</label><input id="loginUser" type="text" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password"></div>
+      <button class="btn" onclick="handleLogin()">Sign In</button>
+      <div class="login-error" id="loginErr"></div>
+    </div>
+
+    <div id="setupForm" style="display:none;">
+      <div class="field"><label>Choose Admin Username</label><input id="setupUser" type="text"></div>
+      <div class="field"><label>Choose Admin Password</label><input id="setupPass" type="password"></div>
+      <div class="field"><label>Confirm Password</label><input id="setupPass2" type="password"></div>
+      <button class="btn" onclick="handleSetup()">Create Admin Account</button>
+      <div class="login-error" id="setupErr"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN APP ===================== -->
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="side-top">
+      <span class="brand" id="sideBrand">ICC Welfare</span>
+      <div class="hamburger" onclick="toggleSidebar()" title="Toggle panel">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </div>
+    </div>
+    <nav class="nav" id="navList"></nav>
+    <div class="side-foot">
+      <div class="side-foot-text">Signed in as <b id="sideUserName">-</b></div>
+      <span class="logout-link" onclick="handleLogout()">Log out</span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="pageTitle">Dashboard</h2>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="who">Branch network <b>•</b> <span id="topDate"></span> <b>•</b> <span id="syncStatus">Local only</span></div>
+        <div class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <svg id="themeIconApp" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></svg>
+        </div>
+      </div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =================================================================
+   ICC WELFARE — DATA LAYER (localStorage, structured for future
+   Google Sheets sync via Apps Script — see apps-script.gs)
+================================================================= */
+const BRANCHES = ["Narrow Gate","Satellite","Oduman","Mars","Chosen Gen"];
+const AMOUNTS = [10,20,35];
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+// Set this once you've deployed your Apps Script — every device will then
+// pull shared data from the same Google Sheet automatically, even before
+// it has any local data of its own.
+const DEFAULT_SHEET_API_URL = "";
+const DB = {
+  get(key, fallback){ try{ const v = localStorage.getItem('iccw_'+key); return v? JSON.parse(v): fallback; }catch(e){ return fallback; } },
+  set(key, val){ localStorage.setItem('iccw_'+key, JSON.stringify(val)); }
+};
+function uid(){ return 'm_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function initDB(){
+  if(!DB.get('settings')) DB.set('settings',{appName:"ICC Welfare", labels:{members:"Members",payment:"Payment",records:"Records",reports:"Reports"}, sheetApiUrl:DEFAULT_SHEET_API_URL});
+  if(!DB.get('users')) DB.set('users',[]);
+  if(!DB.get('members')) DB.set('members',[]);
+}
+initDB();
+
+let session = DB.get('session', null);
+let sidebarCollapsed = false;
+
+/* =================================================================
+   GOOGLE SHEETS SYNC (JSONP, offline-queue)
+   Source of truth = localStorage. Every mutation queues a push;
+   pulls happen on login / manual "Sync Now" and merge into local.
+================================================================= */
+let syncBusy = false;
+function getApiUrl(){ const s = DB.get('settings'); const u = s && s.sheetApiUrl ? s.sheetApiUrl.trim() : ''; return u || DEFAULT_SHEET_API_URL; }
+
+function jsonp(url, params){
+  return new Promise((resolve, reject)=>{
+    const cbName = 'iccw_cb_' + Date.now() + '_' + Math.floor(Math.random()*10000);
+    const timeout = setTimeout(()=>{ cleanup(); reject(new Error('timeout')); }, 12000);
+    function cleanup(){
+      clearTimeout(timeout);
+      delete window[cbName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cbName] = (data)=>{ cleanup(); resolve(data); };
+    const qs = Object.entries({...params, callback:cbName}).map(([k,v])=>`${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+    const script = document.createElement('script');
+    script.src = url + (url.includes('?')?'&':'?') + qs;
+    script.onerror = ()=>{ cleanup(); reject(new Error('network error')); };
+    document.body.appendChild(script);
+  });
+}
+
+function b64(obj){ return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+
+/* ---------------- THEME (dark / light) ---------------- */
+const SUN_PATH = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
+const MOON_PATH = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  DB.set('theme', theme);
+  const icon = theme==='light' ? SUN_PATH : MOON_PATH;
+  ['themeIconLogin','themeIconApp'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = icon;
+  });
+}
+function toggleTheme(){
+  const current = DB.get('theme','dark');
+  applyTheme(current==='dark' ? 'light' : 'dark');
+}
+applyTheme(DB.get('theme','dark'));
+
+function markDirty(table){
+  const q = DB.get('syncQueue', {});
+  q[table] = true;
+  DB.set('syncQueue', q);
+  pushTableToSheet(table); // fire and forget; stays queued if it fails
+}
+
+async function pushTableToSheet(table){
+  const url = getApiUrl();
+  if(!url) return;
+  try{
+    const data = DB.get(table, []);
+    const res = await jsonp(url, {action:'push', table, data: b64(data)});
+    if(res && res.ok){
+      const q = DB.get('syncQueue', {});
+      delete q[table];
+      DB.set('syncQueue', q);
+      setSyncStatus('synced');
+    } else { setSyncStatus('error'); }
+  } catch(e){ setSyncStatus('offline'); }
+}
+
+async function pullTableFromSheet(table){
+  const url = getApiUrl();
+  if(!url) return null;
+  try{
+    const res = await jsonp(url, {action:'pull', table});
+    if(res && res.ok) return res.data;
+    return null;
+  } catch(e){ return null; }
+}
+
+async function flushSyncQueue(){
+  const q = DB.get('syncQueue', {});
+  for(const table of Object.keys(q)){ await pushTableToSheet(table); }
+}
+
+async function syncNow(showToast){
+  const url = getApiUrl();
+  if(!url){ if(showToast) toast('Add a Google Sheets URL in Settings first'); return; }
+  syncBusy = true; setSyncStatus('syncing');
+  try{
+    await flushSyncQueue();
+    for(const table of ['members','users','settings']){
+      const remote = await pullTableFromSheet(table);
+      if(remote && Array.isArray(remote) && remote.length){
+        DB.set(table, remote);
+      } else if(remote && !Array.isArray(remote) && Object.keys(remote).length){
+        DB.set(table, remote);
+      } else {
+        await pushTableToSheet(table);
+      }
+    }
+    setSyncStatus('synced');
+    if(showToast) toast('Synced with Google Sheets');
+    if(document.getElementById('app').classList.contains('active')){ buildNav(); goPage(currentPage); }
+  } catch(e){
+    setSyncStatus('error');
+    if(showToast) toast('Sync failed — check the Apps Script URL');
+  }
+  syncBusy = false;
+}
+
+function setSyncStatus(state){
+  const el = document.getElementById('syncStatus');
+  if(!el) return;
+  const map = { synced:['Synced','var(--green)'], syncing:['Syncing…','var(--gold)'], offline:['Offline — saved locally','var(--muted)'], error:['Sync error','var(--red)'], off:['Local only','var(--muted)'] };
+  const [label,color] = map[state] || map.off;
+  el.textContent = label;
+  el.style.color = color;
+}
+
+/* =================================================================
+   LOGIN / SETUP
+================================================================= */
+function refreshLoginScreen(){
+  const settings = DB.get('settings');
+  document.getElementById('loginAppName').textContent = settings.appName;
+  const users = DB.get('users');
+  const hasAdmin = users.some(u=>u.role==='admin');
+  if(!hasAdmin){
+    document.getElementById('loginForm').style.display='none';
+    document.getElementById('setupForm').style.display='block';
+    document.getElementById('loginSub').textContent = "First-time setup — create your admin account";
+  } else {
+    document.getElementById('loginForm').style.display='block';
+    document.getElementById('setupForm').style.display='none';
+    document.getElementById('loginSub').textContent = "Sign in to continue";
+  }
+}
+
+function handleSetup(){
+  const u = document.getElementById('setupUser').value.trim();
+  const p = document.getElementById('setupPass').value;
+  const p2 = document.getElementById('setupPass2').value;
+  const err = document.getElementById('setupErr');
+  if(!u||!p){ err.textContent="Username and password required."; return; }
+  if(p!==p2){ err.textContent="Passwords do not match."; return; }
+  if(p.length<4){ err.textContent="Password must be at least 4 characters."; return; }
+  const users = DB.get('users');
+  users.push({id:uid(), username:u, password:p, role:'admin', privileges:{addMembers:true, editMembers:true, deleteMembers:true, exportReports:true}});
+  DB.set('users', users);
+  err.textContent='';
+  loginAs(users[users.length-1]);
+}
+
+function handleLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const err = document.getElementById('loginErr');
+  const users = DB.get('users');
+  const found = users.find(x=>x.username.toLowerCase()===u.toLowerCase() && x.password===p);
+  if(!found){ err.textContent="Invalid username or password."; return; }
+  err.textContent='';
+  loginAs(found);
+}
+
+function loginAs(user){
+  session = {id:user.id, username:user.username, role:user.role};
+  DB.set('session', session);
+  bootApp();
+}
+
+function handleLogout(){
+  session = null;
+  localStorage.removeItem('iccw_session');
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+  refreshLoginScreen();
+}
+
+/* =================================================================
+   APP SHELL / NAV
+================================================================= */
+const ICONS = {
+  dashboard:'<path d="M3 13h8V3H3v10zM13 21h8V11h-8v10zM13 3v6h8V3h-8zM3 21h8v-6H3v6z"/>',
+  members:'<circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/><circle cx="18" cy="7" r="3"/><path d="M22 21v-2a4 4 0 00-3-3.87"/>',
+  records:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>',
+  reports:'<path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7"/><rect x="13" y="7" width="3" height="11"/><rect x="19" y="13" width="0" height="5"/><path d="M16 7l5-2"/>',
+  users:'<path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 005 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09A1.65 1.65 0 0015 4.6a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>'
+};
+
+function navItemsFor(role){
+  const items = [
+    {key:'dashboard', label:'Dashboard'},
+    {key:'members', label:'Members'},
+    {key:'records', label:'Records'},
+    {key:'reports', label:'Reports'},
+  ];
+  if(role==='admin'){
+    items.push({key:'users', label:'Users'});
+    items.push({key:'settings', label:'Settings'});
+  }
+  return items;
+}
+
+let currentPage = 'dashboard';
+
+function bootApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('sideUserName').textContent = session.username + (session.role==='admin'?' (Admin)':' (Staff)');
+  document.getElementById('topDate').textContent = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const settings = DB.get('settings');
+  document.getElementById('sideBrand').textContent = settings.appName;
+  buildNav();
+  goPage('dashboard');
+  if(getApiUrl()) syncNow(false); else setSyncStatus('off');
+}
+
+function buildNav(){
+  const nav = document.getElementById('navList');
+  const items = navItemsFor(session.role);
+  nav.innerHTML = items.map(it=>`
+    <div class="nav-item ${it.key===currentPage?'active':''}" data-key="${it.key}" onclick="goPage('${it.key}')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[it.key]}</svg>
+      <span class="nav-label">${it.label}</span>
+    </div>`).join('');
+}
+
+function toggleSidebar(){
+  sidebarCollapsed = !sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+}
+
+function goPage(key){
+  currentPage = key;
+  buildNav();
+  document.getElementById('pageTitle').textContent = key.charAt(0).toUpperCase()+key.slice(1);
+  const renderers = {dashboard:renderDashboard, members:renderMembers, records:renderRecords, reports:renderReports, users:renderUsers, settings:renderSettings};
+  if(renderers[key]) renderers[key]();
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('active'); }
+function openModal(html){ document.getElementById('modalBody').innerHTML = html; document.getElementById('modalOverlay').classList.add('active'); }
+
+/* =================================================================
+   DASHBOARD
+================================================================= */
+function renderDashboard(){
+  const members = DB.get('members');
+  const cards = BRANCHES.map(b=>{
+    const count = members.filter(m=>m.branch===b).length;
+    return `<div class="stat-card"><div class="label">${b}</div><div class="val">${count}</div><div class="sub">Total members</div></div>`;
+  }).join('');
+  const totalCollected = members.reduce((s,m)=>s+Number(m.amount||0),0);
+  const content = `
+    <div class="stat-grid">${cards}</div>
+    <div class="panel-box">
+      <h3>Network Summary</h3>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="label">Total Members</div><div class="val">${members.length}</div></div>
+        <div class="stat-card"><div class="label">Total Contributions</div><div class="val">₵${totalCollected.toLocaleString()}</div></div>
+        <div class="stat-card"><div class="label">Branches</div><div class="val">${BRANCHES.length}</div></div>
+      </div>
+    </div>`;
+  document.getElementById('content').innerHTML = content;
+}
+
+/* =================================================================
+   MEMBERS
+================================================================= */
+let memberSearch='';
+function renderMembers(){
+  const canAdd = session.role==='admin' || hasPriv('addMembers');
+  const canEdit = session.role==='admin' || hasPriv('editMembers');
+  const canDelete = session.role==='admin' || hasPriv('deleteMembers');
+  const members = DB.get('members').filter(m=> (m.name+m.phone+m.branch).toLowerCase().includes(memberSearch.toLowerCase()) );
+  document.getElementById('content').innerHTML = `
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <input class="search-input" placeholder="Search name, phone, branch..." value="${memberSearch}" oninput="memberSearch=this.value; renderMembers();">
+      </div>
+      ${canAdd?`<button class="btn btn-sm" onclick="openMemberModal()">+ Add Member</button>`:''}
+    </div>
+    <div class="panel-box" style="padding:0;overflow-x:auto;">
+      ${members.length? `<table><thead><tr><th>Name</th><th>Phone</th><th>Branch</th><th>Year</th><th>Month</th><th>Amount</th><th></th></tr></thead>
+      <tbody>${members.map(m=>`
+        <tr>
+          <td>${m.name}</td><td>${m.phone}</td>
+          <td><span class="badge badge-branch">${m.branch}</span></td>
+          <td>${m.year}</td><td>${m.month}</td><td>₵${m.amount}</td>
+          <td><div class="row-actions">
+            ${canEdit?`<div class="icon-btn" onclick="openMemberModal('${m.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></div>`:''}
+            ${canDelete?`<div class="icon-btn danger" onclick="deleteMember('${m.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></div>`:''}
+          </div></td>
+        </tr>`).join('')}</tbody></table>`
+      : `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 014-4h6a4 4 0 014 4v2"/></svg><div>No members found</div></div>`}
+    </div>`;
+}
+function hasPriv(key){
+  const users = DB.get('users');
+  const u = users.find(x=>x.id===session.id);
+  return u && u.privileges && u.privileges[key];
+}
+function openMemberModal(id){
+  const members = DB.get('members');
+  const m = id ? members.find(x=>x.id===id) : null;
+  openModal(`
+    <h3>${m?'Edit Member':'Add Member'}</h3>
+    <div class="modal-grid">
+      <div class="field full"><label>Full Name</label><input id="f_name" value="${m?m.name:''}"></div>
+      <div class="field"><label>Phone</label><input id="f_phone" value="${m?m.phone:''}"></div>
+      <div class="field"><label>Year</label><input id="f_year" type="number" value="${m?m.year:new Date().getFullYear()}"></div>
+      <div class="field"><label>Branch</label><select id="f_branch" class="sel" style="width:100%;">${BRANCHES.map(b=>`<option ${m&&m.branch===b?'selected':''}>${b}</option>`).join('')}</select></div>
+      <div class="field"><label>Month</label><select id="f_month" class="sel" style="width:100%;">${MONTHS.map(mo=>`<option ${m&&m.month===mo?'selected':''}>${mo}</option>`).join('')}</select></div>
+      <div class="field full"><label>Amount</label><select id="f_amount" class="sel" style="width:100%;">${AMOUNTS.map(a=>`<option value="${a}" ${m&&Number(m.amount)===a?'selected':''}>₵ ${a}</option>`).join('')}</select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="saveMember('${m?m.id:''}')">${m?'Save Changes':'Add Member'}</button>
+    </div>`);
+}
+function saveMember(id){
+  const name = document.getElementById('f_name').value.trim();
+  const phone = document.getElementById('f_phone').value.trim();
+  if(!name||!phone){ toast('Name and phone are required'); return; }
+  const data = {
+    name, phone,
+    year: document.getElementById('f_year').value,
+    branch: document.getElementById('f_branch').value,
+    month: document.getElementById('f_month').value,
+    amount: document.getElementById('f_amount').value,
+  };
+  let members = DB.get('members');
+  if(id){
+    members = members.map(m=>m.id===id?{...m,...data}:m);
+    toast('Member updated');
+  } else {
+    members.push({id:uid(), ...data});
+    toast('Member added');
+  }
+  DB.set('members', members);
+  markDirty('members');
+  closeModal();
+  renderMembers();
+}
+function deleteMember(id){
+  if(!confirm('Delete this member record?')) return;
+  DB.set('members', DB.get('members').filter(m=>m.id!==id));
+  markDirty('members');
+  toast('Member deleted');
+  renderMembers();
+}
+
+/* =================================================================
+   RECORDS
+================================================================= */
+let recordsBranch = BRANCHES[0];
+function renderRecords(){
+  const members = DB.get('members').filter(m=>m.branch===recordsBranch);
+  document.getElementById('content').innerHTML = `
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <select class="sel" onchange="recordsBranch=this.value; renderRecords();">
+          ${BRANCHES.map(b=>`<option ${b===recordsBranch?'selected':''}>${b}</option>`).join('')}
+        </select>
+      </div>
+      <div style="color:var(--muted);font-size:13px;">${members.length} member(s)</div>
+    </div>
+    <div class="panel-box" style="padding:0;overflow-x:auto;">
+      ${members.length? `<table><thead><tr><th>Name</th><th>Phone</th><th>Year</th><th>Month</th><th>Amount</th></tr></thead>
+      <tbody>${members.map(m=>`<tr><td>${m.name}</td><td>${m.phone}</td><td>${m.year}</td><td>${m.month}</td><td>₵${m.amount}</td></tr>`).join('')}</tbody></table>`
+      : `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg><div>No records for ${recordsBranch}</div></div>`}
+    </div>`;
+}
+
+/* =================================================================
+   REPORTS
+================================================================= */
+function renderReports(){
+  const years = [...new Set(DB.get('members').map(m=>m.year))].sort();
+  document.getElementById('content').innerHTML = `
+    <div class="panel-box">
+      <h3>Generate Report</h3>
+      <div class="modal-grid">
+        <div class="field"><label>Start Date</label><input type="date" id="r_start"></div>
+        <div class="field"><label>End Date</label><input type="date" id="r_end"></div>
+        <div class="field"><label>Branch</label><select id="r_branch" class="sel" style="width:100%;"><option value="">All Branches</option>${BRANCHES.map(b=>`<option>${b}</option>`).join('')}</select></div>
+        <div class="field"><label>Year</label><select id="r_year" class="sel" style="width:100%;"><option value="">All Years</option>${years.map(y=>`<option>${y}</option>`).join('')}</select></div>
+        <div class="field full"><label>Member (optional)</label><input id="r_member" placeholder="Search by name..."></div>
+      </div>
+      <div class="modal-actions" style="margin-top:18px;">
+        <button class="btn btn-ghost btn-sm" onclick="previewReport()">Preview</button>
+        <button class="btn btn-sm" onclick="exportReport('pdf')">Export PDF</button>
+        <button class="btn btn-sm" onclick="exportReport('excel')">Export Excel</button>
+      </div>
+    </div>
+    <div class="panel-box" id="reportPreviewBox" style="display:none;">
+      <h3>Preview</h3>
+      <div style="overflow-x:auto;" id="reportPreview"></div>
+    </div>`;
+}
+function getReportRows(){
+  const branch = document.getElementById('r_branch').value;
+  const year = document.getElementById('r_year').value;
+  const memberQ = document.getElementById('r_member').value.toLowerCase();
+  return DB.get('members').filter(m=>{
+    if(branch && m.branch!==branch) return false;
+    if(year && String(m.year)!==String(year)) return false;
+    if(memberQ && !m.name.toLowerCase().includes(memberQ)) return false;
+    return true;
+  });
+}
+function previewReport(){
+  const rows = getReportRows();
+  document.getElementById('reportPreviewBox').style.display='block';
+  document.getElementById('reportPreview').innerHTML = rows.length? `
+    <table><thead><tr><th>Name</th><th>Phone</th><th>Branch</th><th>Year</th><th>Month</th><th>Amount</th></tr></thead>
+    <tbody>${rows.map(m=>`<tr><td>${m.name}</td><td>${m.phone}</td><td>${m.branch}</td><td>${m.year}</td><td>${m.month}</td><td>₵${m.amount}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="empty-state">No matching records</div>`;
+}
+function exportReport(type){
+  const rows = getReportRows();
+  if(!rows.length){ toast('No records match the selected filters'); return; }
+  const settings = DB.get('settings');
+  if(type==='excel'){
+    const ws = XLSX.utils.json_to_sheet(rows.map(m=>({Name:m.name,Phone:m.phone,Branch:m.branch,Year:m.year,Month:m.month,Amount:m.amount})));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Report");
+    XLSX.writeFile(wb, `${settings.appName.replace(/\s+/g,'_')}_Report.xlsx`);
+  } else {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(16); doc.text(settings.appName + " — Report", 14, 16);
+    doc.setFontSize(10); doc.text(new Date().toLocaleDateString(), 14, 23);
+    doc.autoTable({
+      startY:28,
+      head:[['Name','Phone','Branch','Year','Month','Amount']],
+      body: rows.map(m=>[m.name,m.phone,m.branch,m.year,m.month,'₵'+m.amount]),
+      headStyles:{fillColor:[20,18,16], textColor:[130,201,187]},
+      styles:{fontSize:9}
+    });
+    doc.save(`${settings.appName.replace(/\s+/g,'_')}_Report.pdf`);
+  }
+  toast('Report exported');
+}
+
+/* =================================================================
+   USERS (admin only)
+================================================================= */
+function renderUsers(){
+  const users = DB.get('users');
+  document.getElementById('content').innerHTML = `
+    <div class="toolbar"><div></div><button class="btn btn-sm" onclick="openUserModal()">+ Add User</button></div>
+    <div class="panel-box" style="padding:0;overflow-x:auto;">
+      <table><thead><tr><th>Username</th><th>Role</th><th>Privileges</th><th></th></tr></thead>
+      <tbody>${users.map(u=>`
+        <tr>
+          <td>${u.username}</td>
+          <td><span class="badge badge-branch">${u.role}</span></td>
+          <td>${u.role==='admin'?'Full Access':Object.entries(u.privileges||{}).filter(([k,v])=>v).map(([k])=>k).join(', ')||'None'}</td>
+          <td><div class="row-actions">
+            ${u.role!=='admin'?`<div class="icon-btn" onclick="openUserModal('${u.id}')" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/></svg></div>
+            <div class="icon-btn danger" onclick="deleteUser('${u.id}')" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg></div>`:'<span style="color:var(--muted);font-size:12px;">—</span>'}
+          </div></td>
+        </tr>`).join('')}</tbody></table>
+    </div>`;
+}
+function openUserModal(id){
+  const users = DB.get('users');
+  const u = id ? users.find(x=>x.id===id) : null;
+  const priv = u?u.privileges:{addMembers:true, editMembers:false, deleteMembers:false, exportReports:true};
+  openModal(`
+    <h3>${u?'Edit User':'Add Regular User'}</h3>
+    <div class="field"><label>Username</label><input id="u_username" value="${u?u.username:''}"></div>
+    <div class="field"><label>Password ${u?'(leave blank to keep current)':''}</label><input id="u_password" type="password"></div>
+    <div class="field"><label>Privileges</label>
+      <div class="checkbox-row"><input type="checkbox" id="p_add" ${priv.addMembers?'checked':''}><span>Add member details</span></div>
+      <div class="checkbox-row"><input type="checkbox" id="p_edit" ${priv.editMembers?'checked':''}><span>Edit member details</span></div>
+      <div class="checkbox-row"><input type="checkbox" id="p_delete" ${priv.deleteMembers?'checked':''}><span>Delete member details</span></div>
+      <div class="checkbox-row"><input type="checkbox" id="p_export" ${priv.exportReports?'checked':''}><span>Export reports</span></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="saveUser('${u?u.id:''}')">${u?'Save Changes':'Create User'}</button>
+    </div>`);
+}
+function saveUser(id){
+  const username = document.getElementById('u_username').value.trim();
+  const password = document.getElementById('u_password').value;
+  if(!username){ toast('Username is required'); return; }
+  const privileges = {
+    addMembers: document.getElementById('p_add').checked,
+    editMembers: document.getElementById('p_edit').checked,
+    deleteMembers: document.getElementById('p_delete').checked,
+    exportReports: document.getElementById('p_export').checked,
+  };
+  let users = DB.get('users');
+  if(id){
+    users = users.map(u=>u.id===id?{...u, username, privileges, password: password? password : u.password}:u);
+    toast('User updated');
+  } else {
+    if(!password){ toast('Password is required for new users'); return; }
+    users.push({id:uid(), username, password, role:'user', privileges});
+    toast('User created');
+  }
+  DB.set('users', users);
+  markDirty('users');
+  closeModal();
+  renderUsers();
+}
+function deleteUser(id){
+  if(!confirm('Remove this user account?')) return;
+  DB.set('users', DB.get('users').filter(u=>u.id!==id));
+  markDirty('users');
+  toast('User removed');
+  renderUsers();
+}
+
+/* =================================================================
+   SETTINGS (admin only)
+================================================================= */
+function renderSettings(){
+  const settings = DB.get('settings');
+  const users = DB.get('users');
+  const admin = users.find(u=>u.id===session.id);
+  document.getElementById('content').innerHTML = `
+    <div class="panel-box">
+      <h3>App Branding</h3>
+      <div class="field"><label>App Name</label><input id="s_appname" value="${settings.appName}"></div>
+      <div class="modal-grid">
+        <div class="field"><label>"Members" label</label><input id="s_l_members" value="${settings.labels.members}"></div>
+        <div class="field"><label>"Payment" label</label><input id="s_l_payment" value="${settings.labels.payment}"></div>
+        <div class="field"><label>"Records" label</label><input id="s_l_records" value="${settings.labels.records}"></div>
+        <div class="field"><label>"Reports" label</label><input id="s_l_reports" value="${settings.labels.reports}"></div>
+      </div>
+      <button class="btn btn-sm" style="margin-top:10px;" onclick="saveSettings()">Save Branding</button>
+    </div>
+    <div class="panel-box">
+      <h3>Google Sheets Sync</h3>
+      <p style="color:var(--muted);font-size:12.5px;margin-bottom:14px;">Paste the Apps Script Web App URL (ends in /exec) from your Google Sheet deployment. Data is always saved locally first and synced when a connection is available.</p>
+      <div class="field"><label>Apps Script Web App URL</label><input id="s_sheeturl" placeholder="https://script.google.com/macros/s/AKfycbxIiDjNGthmD8MMSsdKzqZKEOGrD4v3g8p0eugWgMcGzDDWMcURw3Ms0VBzuhtEp0_K/exec" value="${settings.sheetApiUrl||''}"></div>
+      <div class="modal-actions" style="margin-top:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="saveSheetUrl()">Save URL</button>
+        <button class="btn btn-sm" onclick="syncNow(true)">Sync Now</button>
+      </div>
+    </div>
+    <div class="panel-box">
+      <h3>My Admin Credentials</h3>
+      <div class="field"><label>Username</label><input id="s_username" value="${admin.username}"></div>
+      <div class="field"><label>New Password (leave blank to keep current)</label><input id="s_password" type="password"></div>
+      <button class="btn btn-sm" onclick="saveAdminCreds()">Update Credentials</button>
+    </div>`;
+}
+function saveSheetUrl(){
+  const settings = DB.get('settings');
+  settings.sheetApiUrl = document.getElementById('s_sheeturl').value.trim();
+  DB.set('settings', settings);
+  toast('Google Sheets URL saved');
+}
+function saveSettings(){
+  const settings = DB.get('settings');
+  settings.appName = document.getElementById('s_appname').value.trim() || settings.appName;
+  settings.labels = {
+    members: document.getElementById('s_l_members').value,
+    payment: document.getElementById('s_l_payment').value,
+    records: document.getElementById('s_l_records').value,
+    reports: document.getElementById('s_l_reports').value,
+  };
+  DB.set('settings', settings);
+  document.getElementById('sideBrand').textContent = settings.appName;
+  markDirty('settings');
+  toast('Branding updated');
+}
+function saveAdminCreds(){
+  const username = document.getElementById('s_username').value.trim();
+  const password = document.getElementById('s_password').value;
+  let users = DB.get('users');
+  users = users.map(u=>u.id===session.id?{...u, username, password: password? password : u.password}:u);
+  DB.set('users', users);
+  markDirty('users');
+  session.username = username;
+  DB.set('session', session);
+  document.getElementById('sideUserName').textContent = username + ' (Admin)';
+  toast('Credentials updated');
+}
+
+/* =================================================================
+   INIT
+   Pull the latest users/members/settings from Google Sheets BEFORE
+   deciding whether to show Login or Create-Admin — this is what lets
+   every device/browser share the same accounts instead of each one
+   thinking it's a fresh install.
+================================================================= */
+async function initApp(){
+  const url = getApiUrl();
+  if(url){
+    document.getElementById('loginSub').textContent = 'Loading…';
+    document.getElementById('loginForm').style.display='none';
+    document.getElementById('setupForm').style.display='none';
+    for(const table of ['users','members','settings']){
+      const remote = await pullTableFromSheet(table);
+      if(remote && ((Array.isArray(remote) && remote.length) || (!Array.isArray(remote) && Object.keys(remote).length))){
+        DB.set(table, remote);
+      }
+    }
+    setSyncStatus('synced');
+  }
+  refreshLoginScreen();
+  session = DB.get('session', null);
+  if(session){
+    const users = DB.get('users');
+    const stillExists = users.find(u=>u.id===session.id);
+    if(stillExists) bootApp();
+    else { localStorage.removeItem('iccw_session'); session=null; }
+  }
+}
+initApp();
+</script>
+</body>
+</html>
